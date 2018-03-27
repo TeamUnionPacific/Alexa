@@ -37,11 +37,11 @@ exports.handler = function(event,context) {
 
         handleTrainLineIntent(request,context,session);
 
-      } 
+      }
       else if(request.intent.name === "Position"){
-        
+
         handlePositionIntent(request,context,session);
-        
+
       }else if (request.intent.name === "AMAZON.StopIntent" || request.intent.name === "AMAZON.CancelIntent") {
         context.succeed(buildResponse({
           speechText: "Good bye. ",
@@ -74,80 +74,60 @@ function url(){
   return "http://174.138.38.48:8080/TUPCapstoneApplication/VoiceAssistantOps?wsdl"
 }
 
-function data(){
-
-
-var url = "http://174.138.38.48:8080/TUPCapstoneApplication/VoiceAssistantOps?wsdl";
-
-// var methods = {
-//   getTrainLineup: function(lineup_id, callback) {
-//     var args = {trainLineupId : lineup_id};
-//     soap.createClient(url, function(err, client){
-//     client.getTrainLineup(args, function(err, result){
-//       var obj = JSON.parse(result['return']);
-//       //var obj = result;
-//       callback(obj);
-//     });
-//     });
-//   },
-//   getEmpPosition: function(callback){
-//     var args = {};
-//     soap.createClient(url, function(err, client){
-//       client.getEmpPosition(args, function(err, result){
-//         callback(result['return']);
-//       });
-//     });
-//   }
-// }
-
-// module.exports = methods;
-}
-
 // function getQuote(callback) {
-function getLineUp(callback){  
+function getLineUp(id, callback){
 /*******************
 * Added
 ******************/
 
-    request.get(url(), function(error, response, body) {
-        // var d = JSON.parse(body)
-        // var time = d.query.train[0].time
-        // var result = d.query.train[0].id + "   at "+ time
-        // result += ".. and .." + d.query.train[1].id + "     at " + d.query.train[1].time
-        var result = body//JSON.parse(body)
-        //var time = result.rows[0]
-        if(result != null){
-          // while(result != null){
-            
-          // /******/
-          // if(id == "2018")
-          // {
-          //   if(d.query.train.train_line == "2018"){
-          //     var time = d.query.train.time
-          //     result = d.query.train.id + "   at "+ time 
-          //   }
-          //}
-          // if(id == "1234"){
-          //   if(d.query.train.train_line == "1234")
-          //   {
-          //     var time = d.query.train.time
-          //     result = d.query.train.id + "   at "+ time 
-          //   }
-          // }
-          // /******/
-          
-          
-            callback(result);
-          //}
-        } else {
-            callback("ERROR")
-        }
+    var args = {trainLineupId : id};
+    soap.createClient(url(), function(err, client){
+      client.getTrainLineup(args, function(err, result){
+        var obj = JSON.parse(result['return']);
+        callback(obj['rows']);
+      })
     })
-  
+
+    // request.get(url(), function(error, response, body) {
+    //     // var d = JSON.parse(body)
+    //     // var time = d.query.train[0].time
+    //     // var result = d.query.train[0].id + "   at "+ time
+    //     // result += ".. and .." + d.query.train[1].id + "     at " + d.query.train[1].time
+    //     var result = body//JSON.parse(body)
+    //     //var time = result.rows[0]
+    //     if(result != null){
+    //       // while(result != null){
+    //
+    //       // /******/
+    //       // if(id == "2018")
+    //       // {
+    //       //   if(d.query.train.train_line == "2018"){
+    //       //     var time = d.query.train.time
+    //       //     result = d.query.train.id + "   at "+ time
+    //       //   }
+    //       //}
+    //       // if(id == "1234"){
+    //       //   if(d.query.train.train_line == "1234")
+    //       //   {
+    //       //     var time = d.query.train.time
+    //       //     result = d.query.train.id + "   at "+ time
+    //       //   }
+    //       // }
+    //       // /******/
+    //
+    //
+    //         callback(result);
+    //       //}
+    //     } else {
+    //         callback("ERROR")
+    //     }
+    // })
+
 }
 
 
 function getPosition(callback){
+
       request.get(url(), function(error, response, body) {
         var result = body//JSON.parse(body)
         //var result = d.query.pos
@@ -176,7 +156,7 @@ function getWish() {
   } else {
     return "Good evening. ";
   }
-  
+
 }
 
 
@@ -249,8 +229,8 @@ function handleTrainLineIntent(request,context,session){
   let options = {};
   let id = request.intent.slots.Train.value;
   options.session = session;
-  
-    getLineUp(function(data,err) {
+
+    getLineUp(id, function(data,err) {
     if(err) {
       context.fail(err);
     } else {
@@ -268,7 +248,7 @@ function handleTrainLineIntent(request,context,session){
 function handlePositionIntent(request,context,session){
   let options = {};
   options.session = session;
-  
+
     getPosition(function(data,err) {
     if(err) {
       context.fail(err);
@@ -308,5 +288,3 @@ function handlePositionIntent(request,context,session){
 //   }
 
 // }
-
-
