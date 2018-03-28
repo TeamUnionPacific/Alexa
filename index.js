@@ -68,9 +68,6 @@ exports.handler = function(event,context) {
 * Added
 ******************/
 function url(){
-    //return "https://www.tup-capstone.tk/js/"
-  //return "http://www.tup-capstone.tk:80/TUPCapstoneApplication/VoiceAssistantOps?wsdl"
-  //return "http://www.webservicex.net/AustralianPostCode.asmx?WSDL"
   return "http://174.138.38.48:8080/TUPCapstoneApplication/VoiceAssistantOps?wsdl"
 }
 
@@ -83,60 +80,58 @@ function getLineUp(id, callback){
     var args = {trainLineupId : id};
     soap.createClient(url(), function(err, client){
       client.getTrainLineup(args, function(err, result){
-        var obj = JSON.parse(result['return']);
-        callback(obj['rows']);
+        if(result != null){
+
+          var obj = JSON.parse(result['return']);
+          var rows = obj['rows'];
+
+          if(rows.length > 0){
+            var rows = obj['rows'];
+            var trains = [];
+
+            for(var i=0; i<rows.length; i++){
+              trains.push('<say-as interpret-as="spell-out">'+rows[i][2]+'</say-as>' + " at " + rows[i][1] + "...");
+            }
+            trains = trains.join(" ");
+            callback(trains);
+          }
+          else{
+            callback("ERROR");
+          }
+
+        }
+        else{
+          callback("ERROR");
+        }
       })
     })
-
-    // request.get(url(), function(error, response, body) {
-    //     // var d = JSON.parse(body)
-    //     // var time = d.query.train[0].time
-    //     // var result = d.query.train[0].id + "   at "+ time
-    //     // result += ".. and .." + d.query.train[1].id + "     at " + d.query.train[1].time
-    //     var result = body//JSON.parse(body)
-    //     //var time = result.rows[0]
-    //     if(result != null){
-    //       // while(result != null){
-    //
-    //       // /******/
-    //       // if(id == "2018")
-    //       // {
-    //       //   if(d.query.train.train_line == "2018"){
-    //       //     var time = d.query.train.time
-    //       //     result = d.query.train.id + "   at "+ time
-    //       //   }
-    //       //}
-    //       // if(id == "1234"){
-    //       //   if(d.query.train.train_line == "1234")
-    //       //   {
-    //       //     var time = d.query.train.time
-    //       //     result = d.query.train.id + "   at "+ time
-    //       //   }
-    //       // }
-    //       // /******/
-    //
-    //
-    //         callback(result);
-    //       //}
-    //     } else {
-    //         callback("ERROR")
-    //     }
-    // })
 
 }
 
 
 function getPosition(callback){
+  soap.createClient(url(), function(err, client){
+    client.getEmpPosition(function(err, result){
+      if(result != null){
+        var num = JSON.parse(result['return']);
+        callback(num['position']);
+      }
 
-      request.get(url(), function(error, response, body) {
-        var result = body//JSON.parse(body)
-        //var result = d.query.pos
-        if(result != null){
-            callback(result);
-        } else {
-            callback("ERROR")
-        }
+      else{
+        callback("ERROR");
+      }
     })
+  })
+
+    //   request.get(url(), function(error, response, body) {
+    //     var result = body//JSON.parse(body)
+    //     //var result = d.query[2].pos
+    //     if(result != null){
+    //         callback(result);
+    //     } else {
+    //         callback("ERROR")
+    //     }
+    // })
 }
 
 
@@ -218,7 +213,7 @@ function buildResponse(options) {
 
 function handleLaunchRequest(context) {
   let options = {};
-  options.speechText =  "Welcome to PST schedule app alpha. You can request info about a train lineup or your schedule. what can I help you with? ";
+  options.speechText =  "Welcome to PST schedule app beta. You can request info about a train lineup or your schedule. what can I help you with? ";
   options.repromptText = "You can say for example, what is my postion. or what is train line up four digits code ";
   options.endSession = false;
   context.succeed(buildResponse(options));
@@ -233,9 +228,16 @@ function handleTrainLineIntent(request,context,session){
     getLineUp(id, function(data,err) {
     if(err) {
       context.fail(err);
-    } else {
+    }
+    else if(data == "ERROR"){
+      options.speechText = " You train id is not correct...";
+      options.speechText += " Please try again ";
+      options.endSession = false;
+      context.succeed(buildResponse(options));
+    }
+    else {
       options.speechText = `Here is information for train line up <say-as interpret-as="spell-out">${id}</say-as>.  ` + data +"..";
-      options.speechText += " Would you like to check anything else? ";
+      options.speechText += " If you would like to continue please enter another command. ";
       // options.repromptText = "You can say yes or more. ";
       // options.session.attributes.quoteIntent = true;
       options.endSession = false;
@@ -254,8 +256,9 @@ function handlePositionIntent(request,context,session){
       context.fail(err);
     } else {
       let speech = new Speechlet();
-      options.speechText = "You are at   " + speech.sayAs(data, {interpretAs: "ordinal"}).pause("1s").output();
-      options.speechText += "  Do you want to check anything else? ";
+      // options.speechText = "You are at   " + speech.sayAs(data, {interpretAs: "ordinal"}).pause("1s").output();
+      options.speechText = "You are " + data + " times out..";
+      options.speechText += "     Do you want to check anything else? ";
       options.endSession = false;
       context.succeed(buildResponse(options));
     }
