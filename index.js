@@ -30,7 +30,8 @@ exports.handler = function(event,context) {
     if (request.type === "LaunchRequest") {
       handleLaunchRequest(context);
 
-    } else if (request.type === "IntentRequest") {
+    }
+    else if (request.type === "IntentRequest") {
 
       if (request.intent.name === "TrainLine") {
         //if(id != null)
@@ -42,19 +43,36 @@ exports.handler = function(event,context) {
 
         handlePositionIntent(request,context,session);
 
-      }else if (request.intent.name === "AMAZON.StopIntent" || request.intent.name === "AMAZON.CancelIntent") {
+      }
+      else if(request.intent.name === "Name"){
+        context.succeed(buildResponse({
+          speechText: "What would you like me to call you?",
+          endSession: false
+        }));
+        if(request.intent.name === "Change"){
+          handleNameChange(request,context,session);
+        }
+      }
+      else if(request.intent.name === "Change"){
+        handleNameChange(request,context,session);
+      }
+      else if (request.intent.name === "AMAZON.StopIntent" || request.intent.name === "AMAZON.CancelIntent") {
         context.succeed(buildResponse({
           speechText: "Good bye. ",
           endSession: true
         }));
 
-      } else {
+      }
+
+      else {
         throw "Unknown intent";
       }
 
-    } else if (request.type === "SessionEndedRequest") {
+    }
+    else if (request.type === "SessionEndedRequest") {
 
-    } else {
+    }
+    else {
       throw "Unknown intent type";
     }
   } catch(e) {
@@ -266,7 +284,17 @@ function handlePositionIntent(request,context,session){
 }
 
 
+function handleNameChange(request,content,session){
+  let options = {};
+  let name = request.intent.slots.changeName.value;
+  options.session = session;
 
+  let speech = new Speechlet();
+  options.speechText = "Now name is changed to "+name+"..";
+  options.speechText += "     Do you want to check anything else? ";
+  options.endSession = false;
+  context.succeed(buildResponse(options));
+}
 // function handleNextQuoteIntent(request,context,session) {
 //   let options = {};
 //   options.session = session;
