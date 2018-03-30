@@ -16,8 +16,6 @@ exports.handler = function(event,context) {
       console.log("Request:\n"+JSON.stringify(event,null,2));
     }
 
-
-
     var request = event.request;
     var session = event.session;
 
@@ -90,12 +88,19 @@ function url(){
 }
 
 // function getQuote(callback) {
-function getLineUp(id, callback){
+function getLineUp(id, amazonId, callback){
 /*******************
 * Added
 ******************/
 
     var args = {trainLineupId : id};
+    var log_args = {
+      assistantId: amazonId,
+      query: "hello logging",
+      intent: "getTrainLineup",
+      assistant: "Amazon",
+      error: ""
+    };
     soap.createClient(url(), function(err, client){
       client.getTrainLineup(args, function(err, result){
         if(result != null){
@@ -122,12 +127,20 @@ function getLineUp(id, callback){
           callback("ERROR");
         }
       })
+      client.generateLog(log_args, function(err, result){})
     })
 
 }
 
 
-function getPosition(callback){
+function getPosition(amazonId, callback){
+  var log_args = {
+    assistantId: amazonId,
+    query: "hello logging",
+    intent: "getEmpPosition",
+    assistant: "Amazon",
+    error: ""
+  };
   soap.createClient(url(), function(err, client){
     client.getEmpPosition(function(err, result){
       if(result != null){
@@ -139,6 +152,7 @@ function getPosition(callback){
         callback("ERROR");
       }
     })
+    client.generateLog(log_args, function(err, result){})
   })
 
     //   request.get(url(), function(error, response, body) {
@@ -150,6 +164,22 @@ function getPosition(callback){
     //         callback("ERROR")
     //     }
     // })
+}
+
+function logPreferenceChange(amazonId, preference, callback){
+  console.log(amazonId);
+  var log_args = {
+    assistantId: amazonId,
+    query: "hello logging",
+    intent: preference,
+    assistant: "Amazon",
+    error: ""
+  };
+  soap.createClient(url(), function(err, client){
+    client.generateLog(log_args, function(err, result){
+      callback(true);
+    })
+  })
 }
 
 
@@ -241,9 +271,10 @@ function handleLaunchRequest(context) {
 function handleTrainLineIntent(request,context,session){
   let options = {};
   let id = request.intent.slots.Train.value;
+  let amazonId = session.user.userId;
   options.session = session;
 
-    getLineUp(id, function(data,err) {
+    getLineUp(id, amazonId, function(data,err) {
     if(err) {
       context.fail(err);
     }
@@ -267,9 +298,10 @@ function handleTrainLineIntent(request,context,session){
 
 function handlePositionIntent(request,context,session){
   let options = {};
+  let amazonId = session.user.userId;
   options.session = session;
 
-    getPosition(function(data,err) {
+    getPosition(amazonId, function(data,err) {
     if(err) {
       context.fail(err);
     } else {
@@ -284,16 +316,25 @@ function handlePositionIntent(request,context,session){
 }
 
 
-function handleNameChange(request,content,session){
+function handleNameChange(request,context,session){
   let options = {};
   let name = request.intent.slots.changeName.value;
+  let amazonId = session.user.userId;
   options.session = session;
 
-  let speech = new Speechlet();
-  options.speechText = "Now name is changed to "+name+"..";
-  options.speechText += "     Do you want to check anything else? ";
-  options.endSession = false;
-  context.succeed(buildResponse(options));
+  logPreferenceChange(amazonId, "changeUsername", function(data, err){
+    let speech = new Speechlet();
+    options.speechText = "Your preferred name is now " + name + "..";
+    options.speechText += "     Do you want to check anything else? ";
+    options.endSession = false;
+    context.succeed(buildResponse(options));
+  });
+
+  // let speech = new Speechlet();
+  // options.speechText = "Your preferred name is now " + name + "..";
+  // options.speechText += "     Do you want to check anything else? ";
+  // options.endSession = false;
+  // context.succeed(buildResponse(options));
 }
 // function handleNextQuoteIntent(request,context,session) {
 //   let options = {};
