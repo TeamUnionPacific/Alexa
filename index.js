@@ -26,22 +26,20 @@ exports.handler = function(event,context) {
     }
 
     if (request.type === "LaunchRequest") {
-      handleLaunchRequest(context);
+      handleLaunchRequest(context, session);
 
     }
     else if (request.type === "IntentRequest") {
 
       if (request.intent.name === "TrainLine") {
         //if(id != null)
-
         handleTrainLineIntent(request,context,session);
-
       }
+
       else if(request.intent.name === "Position"){
-
         handlePositionIntent(request,context,session);
-
       }
+
       else if(request.intent.name === "Name"){
         context.succeed(buildResponse({
           speechText: "What would you like me to call you?",
@@ -54,6 +52,11 @@ exports.handler = function(event,context) {
       else if(request.intent.name === "Change"){
         handleNameChange(request,context,session);
       }
+
+      else if(request.intent.name === "ChangeTimeFormat"){
+        handleChangeTimeFormat(request,context,session);
+      }
+
       else if (request.intent.name === "AMAZON.StopIntent" || request.intent.name === "AMAZON.CancelIntent") {
         context.succeed(buildResponse({
           speechText: "Good bye. ",
@@ -67,9 +70,11 @@ exports.handler = function(event,context) {
       }
 
     }
+
     else if (request.type === "SessionEndedRequest") {
 
     }
+
     else {
       throw "Unknown intent type";
     }
@@ -88,15 +93,18 @@ function url(){
 }
 
 // function getQuote(callback) {
-function getLineUp(id, amazonId, callback){
+function getLineUp(id, time_format, amazonId, callback){
 /*******************
 * Added
 ******************/
 
-    var args = {trainLineupId : id};
+    var args = {
+      trainLineupId : id,
+      timeFormat : time_format
+    };
     var log_args = {
       assistantId: amazonId,
-      query: "hello logging",
+      query: "",
       intent: "getTrainLineup",
       assistant: "Amazon",
       error: ""
@@ -136,7 +144,7 @@ function getLineUp(id, amazonId, callback){
 function getPosition(amazonId, callback){
   var log_args = {
     assistantId: amazonId,
-    query: "hello logging",
+    query: "",
     intent: "getEmpPosition",
     assistant: "Amazon",
     error: ""
@@ -154,23 +162,12 @@ function getPosition(amazonId, callback){
     })
     client.generateLog(log_args, function(err, result){})
   })
-
-    //   request.get(url(), function(error, response, body) {
-    //     var result = body//JSON.parse(body)
-    //     //var result = d.query[2].pos
-    //     if(result != null){
-    //         callback(result);
-    //     } else {
-    //         callback("ERROR")
-    //     }
-    // })
 }
 
 function logPreferenceChange(amazonId, preference, callback){
-  console.log(amazonId);
   var log_args = {
     assistantId: amazonId,
-    query: "hello logging",
+    query: "",
     intent: preference,
     assistant: "Amazon",
     error: ""
@@ -179,6 +176,59 @@ function logPreferenceChange(amazonId, preference, callback){
     client.generateLog(log_args, function(err, result){
       callback(true);
     })
+  })
+}
+
+function getPreferences(amazonId, callback){
+  var args = { AmazonAlexaId : amazonId };
+  soap.createClient(url(), function(err, client){
+    client.getPreferences(args, function(err, result){
+      var result = JSON.parse(result['return']);
+      /*
+      * result = {PreferredName: "name", TimeFormat: "[AMPM | MIL]"}
+      */
+      callback(result);
+    })
+  })
+}
+
+function updatePreferredName(amazonId, username, callback){
+  var args = {
+    AmazonAlexaId: amazonId,
+    PreferredName: username
+  };
+  var log_args = {
+    assistantId: amazonId,
+    query: "",
+    intent: "changeUsername",
+    assistant: "Amazon",
+    error: ""
+  };
+  soap.createClient(url(), function(err, client){
+    client.updatePreferredName(args, function(data, err){
+      callback(true);
+    })
+    client.generateLog(log_args, function(err, result){})
+  })
+}
+
+function updateTimeFormat(amazonId, time_format, callback){
+  var args = {
+    AmazonAlexaId: amazonId,
+    TimeFormat: time_format
+  };
+  var log_args = {
+    assistantId: amazonId,
+    query: "",
+    intent: "ChangeTimeFormat",
+    assistant: "Amazon",
+    error: ""
+  };
+  soap.createClient(url(), function(err, client){
+    client.updateTimeFormat(args, function(data, err){
+      callback(true);
+    })
+    client.generateLog(log_args, function(err, result){})
   })
 }
 
@@ -259,12 +309,41 @@ function buildResponse(options) {
   return response;
 }
 
-function handleLaunchRequest(context) {
+function handleLaunchRequest(context, session) {
   let options = {};
-  options.speechText =  "Welcome to PST schedule app beta. You can request info about a train lineup or your schedule. what can I help you with? ";
+  var username_ = "";
+  var timeFormat_ = "";
+  let amazonId = session.user.userId;
+  var speechText = "welcome to PST schedule app beta. You can request info about a train lineup or request your position. What can I help you with? ";
+
   options.repromptText = "You can say for example, what is my postion. or what is train line up four digits code ";
   options.endSession = false;
-  context.succeed(buildResponse(options));
+
+  // app launched, check for new session: if new then retrieve username and time format from database and add to session
+  if(session.new == true){
+    // retrieve username and time format and add to sessionAttributes
+    getPreferences(amazonId, function(data, err){
+      username_ = data['PreferredName'];
+      timeFormat_ = data['TimeFormat'];
+
+      // add the values to options, so they will be recorded in the session by being inserted into sessionAttributes
+      options.session = {
+        attributes: {
+          username: username_,
+          timeFormat: timeFormat_
+        }
+      };
+
+      options.speechText = "Hello " + username_ + ", " + speechText;
+      context.succeed(buildResponse(options));
+    });
+
+  }
+  else{
+    username_ = session.attributes.username;
+    options.speechText = "Hello " + username_ + ", " + speechText;
+    context.succeed(buildResponse(options));
+  }
 }
 
 
@@ -272,9 +351,11 @@ function handleTrainLineIntent(request,context,session){
   let options = {};
   let id = request.intent.slots.Train.value;
   let amazonId = session.user.userId;
+  let username = session.attributes.username;
+  let timeFormat = session.attributes.timeFormat;
   options.session = session;
 
-    getLineUp(id, amazonId, function(data,err) {
+    getLineUp(id, timeFormat, amazonId, function(data,err) {
     if(err) {
       context.fail(err);
     }
@@ -285,7 +366,7 @@ function handleTrainLineIntent(request,context,session){
       context.succeed(buildResponse(options));
     }
     else {
-      options.speechText = `Here is information for train line up <say-as interpret-as="spell-out">${id}</say-as>.  ` + data +"..";
+      options.speechText = username + ' , here is information for train line up <say-as interpret-as="spell-out">' + id + '</say-as>.  ' + data +"..";
       options.speechText += " If you would like to continue please enter another command. ";
       // options.repromptText = "You can say yes or more. ";
       // options.session.attributes.quoteIntent = true;
@@ -299,6 +380,7 @@ function handleTrainLineIntent(request,context,session){
 function handlePositionIntent(request,context,session){
   let options = {};
   let amazonId = session.user.userId;
+  let username = session.attributes.username;
   options.session = session;
 
     getPosition(amazonId, function(data,err) {
@@ -307,7 +389,7 @@ function handlePositionIntent(request,context,session){
     } else {
       let speech = new Speechlet();
       // options.speechText = "You are at   " + speech.sayAs(data, {interpretAs: "ordinal"}).pause("1s").output();
-      options.speechText = "You are " + data + " times out..";
+      options.speechText = username + ", you are " + data + " times out..";
       options.speechText += "     Do you want to check anything else? ";
       options.endSession = false;
       context.succeed(buildResponse(options));
@@ -320,21 +402,40 @@ function handleNameChange(request,context,session){
   let options = {};
   let name = request.intent.slots.changeName.value;
   let amazonId = session.user.userId;
+  session.attributes.username = name; // change username in the session
   options.session = session;
 
-  logPreferenceChange(amazonId, "changeUsername", function(data, err){
+  // change the username in the database
+  updatePreferredName(amazonId, name, function(data, err){
     let speech = new Speechlet();
     options.speechText = "Your preferred name is now " + name + "..";
     options.speechText += "     Do you want to check anything else? ";
     options.endSession = false;
     context.succeed(buildResponse(options));
   });
+}
 
-  // let speech = new Speechlet();
-  // options.speechText = "Your preferred name is now " + name + "..";
-  // options.speechText += "     Do you want to check anything else? ";
-  // options.endSession = false;
-  // context.succeed(buildResponse(options));
+function handleChangeTimeFormat(request,context,session){
+  let options = {};
+  let amazonId = session.user.userId;
+  let time_format = request.intent.slots.timeFormat.value;
+  if(time_format == "12 hour"){
+    time_format = "AMPM";  // temporary hack: alexa cant accept input of "AMPM" so using key phrase "12 Hour"
+  }
+  else if(time_format == "military"){
+    time_format = "Military";
+  }
+  session.attributes.timeFormat = time_format; // change in the session
+  options.session = session;
+
+  // change in the database
+  updateTimeFormat(amazonId, time_format, function(data, err){
+    let speech = new Speechlet();
+    options.speechText = "Your preferred time format is now " + time_format + "..";
+    options.speechText += "     Do you want to check anything else? ";
+    options.endSession = false;
+    context.succeed(buildResponse(options));
+  })
 }
 // function handleNextQuoteIntent(request,context,session) {
 //   let options = {};
