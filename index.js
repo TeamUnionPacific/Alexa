@@ -1,6 +1,6 @@
 'use strict';
 
-var request = require("request")
+var request = require("request");
 var http = require('http');
 const Speechlet = require("alexa-speechlet");
 
@@ -142,6 +142,9 @@ function getLineUp(id, time_format, amazonId, callback){
 
 
 function getPosition(amazonId, callback){
+  var args = {
+    assistantId: amazonId
+  };
   var log_args = {
     assistantId: amazonId,
     query: "",
@@ -150,7 +153,7 @@ function getPosition(amazonId, callback){
     error: ""
   };
   soap.createClient(url(), function(err, client){
-    client.getEmpPosition(function(err, result){
+    client.getEmpPosition(args, function(err, result){
       if(result != null){
         var num = JSON.parse(result['return']);
         callback(num['position']);
@@ -220,7 +223,7 @@ function updateTimeFormat(amazonId, time_format, callback){
   var log_args = {
     assistantId: amazonId,
     query: "",
-    intent: "ChangeTimeFormat",
+    intent: "changeTimeFormat",
     assistant: "Amazon",
     error: ""
   };
