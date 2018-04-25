@@ -1,0 +1,25 @@
+{
+  "name": "alexa",
+  "version": "1.0.0",
+  "description": "dependencies for alexa skill, msu capstone spring semester 2018",
+  "main": "index.js",
+  "dependencies": {
+    "alexa-speechlet": "^1.3.6",
+    "request": "^2.83.0",
+    "soap": "^0.23.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TeamUnionPacific/Alexa.git"
+  },
+  "author": "M Kim, Daniel Agbay",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TeamUnionPacific/Alexa/issues"
+  },
+  "homepage": "https://github.com/TeamUnionPacific/Alexa#readme"
+}
