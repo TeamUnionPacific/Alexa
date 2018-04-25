@@ -317,7 +317,7 @@ function handleLaunchRequest(context, session) {
   var username_ = "";
   var timeFormat_ = "";
   let amazonId = session.user.userId;
-  var speechText = "welcome to PST schedule app beta. You can request info about a train lineup or request your position. What can I help you with? ";
+  var speechText = "welcome to PST schedule app. You can request info about a train lineup or request your position. What can I help you with? ";
 
   options.repromptText = "You can say for example, what is my postion. or what is train line up four digits code ";
   options.endSession = false;
